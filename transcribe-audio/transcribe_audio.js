@@ -13,13 +13,17 @@ const sourceFolder = './przesluchania';
 const destinationFolder = './transcripts';
 
 //remove async
+// async function ensureFolderExists(folderPath) {
+//     try {
+//         await fs.access(folderPath);
+//     } catch (err) {
+//         await fs.mkdir(folderPath);
+//         console.log(`Utworzono folder: ${folderPath}`);
+//     }
+// }
+
 function ensureFolderExists(folderPath) {
-    try {
-        fs.access(folderPath);
-    } catch (err) {
-        fs.mkdir(folderPath);
-        console.log(`Utworzono folder: ${folderPath}`);
-    }
+
 }
 
 function bufferToStream(buffer) {
@@ -31,27 +35,27 @@ function bufferToStream(buffer) {
 
 //remove async
 function getAudioFiles() {
-    try {
-        const files = fs.readdir(sourceFolder);
+    // try {
+        const files = fs.readdir(sourceFolder, (e) => console.log("Dir ", e));
         console.log(files)
         return files
-    } catch (error) {
-        console.error('Błąd podczas odczytywania folderu:', error);
-        return [];
-    }
+    // } catch (error) {
+    //     console.error('Błąd podczas odczytywania folderu:', error);
+    //     return [];
+    // }
 }
 
 async function transcribe() {
     const pathsToFiles = getAudioFiles()
     for (const filePath of pathsToFiles) {
         const fullPath = `${sourceFolder}/${filePath}`
-        const fileBuffer = fs.readFile(fullPath);
+        const fileBuffer = fs.readFile(fullPath, (e) => console.log("File read", e));
         console.log(`Przetwarzanie pliku: ${fullPath}`);
         // const fileStream = bufferToStream(fileBuffer);
         // console.log(fileBuffer)
         try {
             const transcription = await openai.audio.transcriptions.create({
-                file: fs.createReadStream(fullPath),
+                file: fs.createReadStream(fullPath, (e) => console.log("error createReadStream ", e)),
                 model: "whisper-1",
                 language: "pl"
             });
@@ -67,13 +71,13 @@ async function transcribe() {
 
 function saveTranscription(fileName, transcriptionText) {
     const filePath = path.join(destinationFolder, `/${fileName}.txt`);
-    try {
-        fs.writeFile(filePath, transcriptionText, 'utf8');
+    // try {
+        fs.writeFile(filePath, transcriptionText, 'utf8', () => console.log("write file ", e));
         console.log(`Zapisano transkrypcję w pliku: ${filePath}`);
-    } catch (error) {
-        console.error('Błąd zapisu transkrypcji:', error);
-    }
+    // } catch (error) {
+    //     console.error('Błąd zapisu transkrypcji:', error);
+    // }
 }
 
-ensureFolderExists(destinationFolder)
+// ensureFolderExists(destinationFolder)
 transcribe()
