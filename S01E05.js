@@ -6,8 +6,8 @@ dotenv.config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const url = "https://centrala.ag3nts.org/data/86cf405b-cfa7-4ef0-a55c-c23aceacbe68/cenzura.txt"
-const verifyUrl = "https://centrala.ag3nts.org/report "
+const url = process.env.SECRET_ENDPOINT_CENZURA
+const verifyUrl = process.env.SECRET_ENDPOINT_REPORT
 
 async function getData(url) {
     const response = await axios.get(url);
@@ -75,7 +75,7 @@ async function sendData(url) {
 
     const dataToSend = {
         task: "CENZURA",
-        apikey: "86cf405b-cfa7-4ef0-a55c-c23aceacbe68",
+        apikey: process.env.USER_API_KEY,
         answer: data
     }
 

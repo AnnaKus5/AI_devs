@@ -8,7 +8,7 @@ dotenv.config();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function getQuestion() {
-    const response = await axios.get('https://xyz.ag3nts.org');
+    const response = await axios.get(process.env.SECRET_ENDPOINT_QUESTION);
     const $ = cheerio.load(response.data);
     const questionText = $('#human-question').text();
 
@@ -54,7 +54,7 @@ async function sendData() {
         }
     }
 
-    axios.post("https://xyz.ag3nts.org/", dataToSend, config)
+    axios.post(process.env.SECRET_ENDPOINT_QUESTION, dataToSend, config)
         .then(function (response) {
             console.log(response);
         })
@@ -64,6 +64,3 @@ async function sendData() {
 }
 
 // sendData()
-
-
-// {{FLG:FIRMWARE}}

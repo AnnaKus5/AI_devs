@@ -1,0 +1,6 @@
+.env
+node_modules/
+RestfullApi/
+transcribe-audio/przesluchania/
+transcribe-audio/transcripts/
+S01E03.json

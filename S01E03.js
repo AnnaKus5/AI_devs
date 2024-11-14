@@ -24,7 +24,7 @@ const require = createRequire(import.meta.url);
 const data = require('./S01E03.json')
 
 console.log(data.copyright)
-const endpoint = "https://centrala.ag3nts.org/report"
+const endpoint = process.env.SECRET_ENDPOINT_REPORT
 
 
 const newData = await Promise.all(
@@ -75,7 +75,7 @@ async function processQuestion(question) {
 
 const dataToSend = {
     task: "JSON",
-    apikey: "86cf405b-cfa7-4ef0-a55c-c23aceacbe68",
+    apikey: process.env.USER_API_KEY,
     answer: data
 }
 

@@ -6,7 +6,7 @@ dotenv.config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const url = "https://xyz.ag3nts.org/verify"
+const url = process.env.SECRET_ENDPOINT_VERIFY  
 let msgID = 0
 
 async function startVerify() {

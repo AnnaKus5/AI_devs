@@ -36,6 +36,7 @@ function bufferToStream(buffer) {
 //remove async
 function getAudioFiles() {
     // try {
+    //nie odczytuje plików
         const files = fs.readdir(sourceFolder, (e) => console.log("Dir ", e));
         console.log(files)
         return files
