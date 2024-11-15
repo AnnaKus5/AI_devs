@@ -9,7 +9,7 @@ dotenv.config();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const endpoint = "https://centrala.ag3nts.org/report"
+const endpoint = process.env.SECRET_ENDPOINT_REPORT
 
 const sourceFolder = './przesluchania';
 const destinationFolder = './transcripts';
@@ -148,7 +148,7 @@ async function sendData(url) {
     
     const dataToSend = {
         task: "mp3",
-        apikey: "86cf405b-cfa7-4ef0-a55c-c23aceacbe68",
+        apikey: process.env.USER_API_KEY,
         answer: answer.street
     }
     

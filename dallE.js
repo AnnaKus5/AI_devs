@@ -42,7 +42,6 @@ async function generateImage(prompt) {
 }   
 
 
-
 async function sendData(imageUrl) {
 
     const url = process.env.SECRET_ENDPOINT_REPORT
