@@ -1,10 +1,3 @@
-// fetch files from foler pliki z fabryki
-// sort files depends on format: text, audio, image
-//  --> in one function 
-
-// process all data by different models depends on format
-// decide is document relevant to our requirments 
-
 import fs from 'fs/promises'
 import dotenv from 'dotenv';
 import OpenAI from "openai";
@@ -211,15 +204,3 @@ async function main() {
 }
 
 main();
-
-// save transcription in a file in different folder
-
-//send as an obj:
-// {
-// fileName:
-// content:
-// _thinking:
-// isHuman:
-// isHardware:
-// }
-
