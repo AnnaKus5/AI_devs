@@ -57,7 +57,6 @@ async function getKeywords(report, reportPath) {
         return [];
     }
 }
-//TODO: match reports with connected facts
 
 async function matchReportsWithFacts(reports, facts) {
     const results = [];
@@ -96,53 +95,13 @@ async function matchReportsWithFacts(reports, facts) {
     return results;
 }   
 
-
-// async function getFinalKeywords(data) {
-
-//     const finalPrompt = `
-//     Your role is to meticulously analyze the provided user report and extract the most relevant keywords.
-
-//     Analysis instructions, act step by step:
-//        - Identify key names of people and organizations
-//        - Extract locations and places mentioned
-//        - Describe main actions and events happening in the report (e.g. meetings, negotiations, decisions, capture etc.)
-//        - Note technical terms and specifications
-//        - List status changes and decisions
-
-//     Return 5-6 the most precise and relevant keywords that capture the essence of the report. Keywords should be in the nominative form
-//     Keywords should be specific rather than general.  
-//     Do not include any explanations or additional text - only the keywords separated by commas.
-//     `;
-
-//     try {
-//         const completion = await openai.chat.completions.create({
-//             model: "gpt-4o",
-//             messages: [
-//                 { role: "system", content: finalPrompt },
-//                 { role: "user", content: `Report: ${data}` }
-//             ]
-//         });
-//         return completion.choices[0].message.content;
-//     } catch (error) {
-//         console.error("Error during final keywords generation:", error);
-//         return '';
-//     }
-// }
-
 async function saveKeywords(reportPaths, dataStatus) {
     const results = [];
     
     for (const reportPath of reportPaths) {
         const report = await readFileContent(reportPath);
         
-        // Step 1: Get initial keywords
         const keywords = await getKeywords(report, reportPath);
-        
-        // Step 2: Find relevant context
-        // const relevantContext = await findRelevantContext(initialKeywords, factPaths);
-        
-        // // Step 3: Generate final keywords with context
-        // const finalKeywords = await getFinalKeywords(report, relevantContext);
         
         results.push({ file: reportPath, keywords: keywords });
     }
