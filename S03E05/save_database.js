@@ -89,13 +89,8 @@ async function generateSelect() {
 }
 
 async function saveDatabase() {
-    // const request = await generateSelect()
-    //     "SQL_request": "SELECT * FROM users; SELECT * FROM connections;"
-    // has transform into array and map
     const users = await queryDatabase("SELECT * FROM users")
     const connections = await queryDatabase("SELECT * FROM connections")
     await fs.writeFile("users", JSON.stringify(users))
     await fs.writeFile("connections", JSON.stringify(connections))
 }
-
-saveDatabase()

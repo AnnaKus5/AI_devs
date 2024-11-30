@@ -25,3 +25,20 @@ async function openAIRequest(systemPrompt, userQuery, model) {
         console.error("Error during openAIRequest: ", error);
     }
 }
+
+
+async function sendData(taskName, answer) {
+    const url = process.env.SECRET_ENDPOINT_REPORT;
+    const dataToSend = {
+        task: taskName,
+        apikey: process.env.USER_API_KEY,
+        answer: answer
+    };
+
+    try {
+        const response = await axios.post(url, dataToSend);
+        console.log(response.data);
+    } catch (error) {
+        console.log(error);
+    }
+}

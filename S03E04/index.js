@@ -4,7 +4,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv'
 import axios from 'axios';
-import { accessSync } from 'fs';
 
 dotenv.config()
 
@@ -18,6 +17,7 @@ async function getData(url, query) {
     }
     catch (error) {
         console.error("Error during getData ", error)
+        return null;
     }
 }
 
@@ -75,7 +75,7 @@ async function findNamesToCheck(file) {
 
     if (list.names.length > 0) {
         for (const name of list.names) {
-            if (!namesToCheck.includes(name)) {
+            if (!namesToCheck.includes(name) && !savedNamesReports.includes(name)) {
                 namesToCheck.push(name)
             }
         }
@@ -83,7 +83,7 @@ async function findNamesToCheck(file) {
 
     if (list.places.length > 0) {
         for (const place of list.places) {
-            if (!placesToCheck.includes(place)) {
+            if (!placesToCheck.includes(place) && !savedPlacesReports.includes(place)) {
                 placesToCheck.push(place)
             }
         }
@@ -98,41 +98,58 @@ let savedPlacesReports = []
 //find better name, infoPeople, infoPlaces
 const data = {
     people: {
-        barbara: []
+        BARBARA: []
     },
     places: {
-        krakow: []
+        KRAKOW: []
     }
 }
 
-//we have to pass data.places \ function return barbara city or undefined -> to verify
-function whereIsBarbara(data) {
-   const whereIsBarbara = Object.entries(data).map(([key, value]) => {
-    if (value.some(name => name === 'barbara')) {
-        return key
-    }
-   } )
-   return whereIsBarbara
+// Add this helper function to make arrays unique
+function makeUnique(arr) {
+    return [...new Set(arr)];
 }
 
 function findMissingData() {
+    // Make values unique
+    Object.entries(data.people).forEach(([key, value]) => {
+        data.people[key] = makeUnique(value);
+        value.forEach(name => {
+            if(!savedPlacesReports.includes(name) && !savedNamesReports.includes(name)) {
+                placesToCheck.push(name);
+            }
+        });
+    });
 
-    //make values unique
-    // lower and upper case  ?
-    const people = Object.entries(data.people).map(([key, value]) => {
-        value.map(name => {
-            if(!savedPlacesReports.includes(name)) placesToCheck.push(name)
-        })
-    })
-    const places = Object.entries(data.places).map(([key, value]) => {
-        value.map(place => {
-            if(!savedNamesReports.includes(place)) namesToCheck.push(place)
-        })
-    })
+    Object.entries(data.places).forEach(([key, value]) => {
+        data.places[key] = makeUnique(value.filter(place => place !== '[**RESTRICTED' && place !== 'DATA**]'));
+        value.forEach(place => {
+            if(!savedNamesReports.includes(place) && !savedPlacesReports.includes(place)) {
+                namesToCheck.push(place);
+            }
+        });
+    });
 
-    console.log("names to check", namesToCheck)
-    console.log("places to check ", placesToCheck)
+    // Make the check arrays unique
+    namesToCheck = makeUnique(namesToCheck);
+    placesToCheck = makeUnique(placesToCheck);
+
+    console.log("names to check", namesToCheck);
+    console.log("places to check ", placesToCheck);
 }
+
+function replace_polish_letters(text) {
+    return text
+      .replace(/[aĄ]/g, 'A')
+      .replace(/[cĆ]/g, 'C')
+      .replace(/[eĘ]/g, 'E')
+      .replace(/[lŁ]/g, 'L')
+      .replace(/[nŃ]/g, 'N')
+      .replace(/[oÓ]/g, 'O')
+      .replace(/[sŚ]/g, 'S')
+      .replace(/[zŹ]/g, 'Z')
+      .replace(/[zŻ]/g, 'Z');
+  }
 
 async function findConnections(arrayPeople, arrayPlaces) {
 
@@ -140,105 +157,110 @@ async function findConnections(arrayPeople, arrayPlaces) {
     const listOfPeople = []
     const listOfPlaces = []
 
+    console.log("array people in find connestions", arrayPeople)
+
     for (const person of arrayPeople) {
         console.log(person)
-        const response = await getData(process.env.SECRET_ENDPOINT_PEOPLE, person)
-        const name = response.query.toLowerCase()
-        const places = response.hasBeenSeen.toLowerCase().split(" ")
-        //remove restricteddata? is it necessary?
-
-        if (places === '[**RESTRICTED DATA**]') break
-
-
-        if (data.people[name]) {
-            data.people[name].push(places)
+        const personpl = replace_polish_letters(person).toUpperCase()
+        const response = await getData(process.env.SECRET_ENDPOINT_PEOPLE, personpl)
+        
+        if (response && response.hasBeenSeen) {
+            const name = personpl  // Use the original query instead of response.query
+            const places = response.hasBeenSeen.split(" ")
+    
+            if (response.hasBeenSeen === '[**RESTRICTED DATA**]') continue
+    
+            if (data.people[name]) {
+                data.people[name] = [...data.people[name], ...places]
+            } else {
+                data.people[name] = places
+            }
+    
+            listOfPeople.push(response)   
         }
-        else {
-            data.people[name] = places
-        }
-
-        listOfPeople.push(response)   
     }
+
     for (const place of arrayPlaces) {
         console.log(place)
         const response = await getData(process.env.SECRET_ENDPOINT_PLACES, place)
-        const name = response.query.toLowerCase()
-        const people = response.hasBeenSeen.toLowerCase().split(" ")
+        
+        if (response && response.hasBeenSeen) {
+            const name = place  // Use the original query
+            const people = response.hasBeenSeen.split(" ")
 
-        if (data.places[name]) {
-            data.places[name] = [...data.places[name], ...people]
+        if (response.hasBeenSeen === '[**RESTRICTED DATA**]') continue
+
+            if (data.places[name]) {
+                data.places[name] = makeUnique([...data.places[name], ...people]);
+            } else {
+                data.places[name] = people
+            }   
+
+            listOfPlaces.push(response) 
         }
-        else {
-            data.places[name] = people
-        }   
-
-        listOfPlaces.push(response) 
     }
-    const savedData = namesToCheck.map(name => name.toLowerCase())
 
-    savedNamesReports = [...savedNamesReports, ...savedData]
+    // Save processed names
+    const savedNames = namesToCheck.map(name => name)
+    savedNamesReports = [...savedNamesReports, ...savedNames]
     namesToCheck = []
+
+    // Add this: Save processed places
+    const savedPlaces = placesToCheck.map(place => place)
+    savedPlacesReports = [...savedPlacesReports, ...savedPlaces]
+    placesToCheck = []
 
     console.log("data", data)
     console.log("names to check ", namesToCheck)
-    console.log("saved report", savedNamesReports)
+    console.log("places to check ", placesToCheck)
+    console.log("saved names report", savedNamesReports)
+    console.log("saved places report", savedPlacesReports)
 
     findMissingData()
-
-    // if (whereIsBarbara(data.places) !== 'undefined') {
-    //     console.log(whereIsBarbara(data.places))
-    // }
-    // else {
-    //     findMissingData()
-
-    //     //TO DO: find names and cities to send another request to API
-    // }
-
-    // console.log("listOfPeople", listOfPeople)
-    // console.log("listOfPlaces", listOfPlaces)
-
-    // if on listOfPlaces has appear new name then we have to make new request to people endpoint to find out where he was seen
-    // if on listOfPeople has appear new place then we have to make new request to places endpoint to find out who was in this place
-    // if on listOfPlaces.hasBeenSeen has appear Barbara we have the solution and we can send it to the server
 }
 
 
 async function main() {
-    await findNamesToCheck('barbara.txt')
-    await findConnections(namesToCheck, placesToCheck)
-    //temporary to avoid infinity loop
-    await findConnections(namesToCheck, placesToCheck)
+    await findNamesToCheck('barbara.txt');
+    
+    // Use a while loop to call findConnections until both arrays are empty
+    while (namesToCheck.length > 0 || placesToCheck.length > 0) {
+        await findConnections(namesToCheck, placesToCheck);
+    }
 }
 
-main()
+// main();
 
-// function updateInfo(info, type) {
-//     //type: people | cities
-//     // const {name, places} = info
-//     const name = info.name.toLowerCase()
-//     const places = info.places.toLowerCase()
-//     // {name: "", places: []}
-//     for (const place of places) {
-//         if (data[type][name]) {
-//             data[type][name].push(place)
-//         }
-//         else {
-//             data[type]
-//         }
-//     }
-// }
+const infoFromCentrala = {
+    people: {
+      BARBARA: [],
+      ALEKSANDER: [ 'KRAKOW', 'LUBLIN', 'WARSZAWA' ],
+      ANDRZEJ: [ 'WARSZAWA', 'GRUDZIADZ' ],
+      RAFAL: [ 'GRUDZIADZ', 'WARSZAWA', 'LUBLIN' ],
+      ADAM: [ 'KRAKOW', 'CIECHOCINEK' ],
+      AZAZEL: [ 'GRUDZIADZ', 'WARSZAWA', 'KRAKOW', 'LUBLIN', 'ELBLAG' ],
+      GABRIEL: [ 'FROMBORK' ],
+      ARTUR: [ 'KONIN' ],
+      GLITCH: [ 'https://centrala.ag3nts.org/dane/na_smartfona.png' ]
+    },
+    places: {
+      KRAKOW: [ 'ALEKSANDER', 'BARBARA', 'ADAM' ],
+      WARSZAWA: [ 'RAFAŁ', 'ALEKSANDER', 'ANDRZEJ' ],
+      GRUDZIADZ: [ 'RAFAL', 'AZAZEL' ],
+      CIECHOCINEK: [ 'ADAM', 'GABRIEL' ],
+      ELBLAG: [ 'BARBARA' ],
+      FROMBORK: [ 'GABRIEL', 'ARTUR', 'AZAZEL' ],
+      KONIN: [ 'GLITCH' ]
+    }
+  }
 
-// użyłam LLM-a, żeby znaleźć imiona i miejsca w notatce
-// odpytałam API dla każdej znalezionej nazwy
-// nazwy dla których wysłałam zapytanie zapisałam w zmiennych savedPlacesReports i savedPeopleReports
-// jeśli w odpowiedzi od API znalazły się jakieś nazwy, które nie zostały jeszcze wysłane do API, zapisywałam je w placesToCheck i peopleToCheck
-// jednocześnie przechowywałam zdobyte informacje w obiekcie
-// const data = {
-//     people: {
-//         barbara: []
-//     },
-//     places: {
-//         krakow: []
-//     }
-// }
-// po serii zapytań aktualizowałam listę i jeśli w data.places pojawiła się Barbara, zwracałam miasto, do którego została przypisana
+async function whereIsBarbara(raport, infoFromCentrala) {
+
+    const systemPrompt = `
+    Your role it to analyze provided raport and info from centrala and find the answer: where is Barbara?
+    Info from centrala contai
+    `
+    
+}
+
+sendData('loop', 'ELBLAG')
