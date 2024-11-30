@@ -26,38 +26,32 @@ export class PhotoProcessingService {
             apikey: this.apiKey,
             answer: 'START'
         })
-      console.log(response)
+      console.log(response.data)
       return response.data.message;
     }
   
     async processImage(command, filename) {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          task: 'photos',
-          apikey: this.apiKey,
-          answer: `${command} ${filename}`
-        })
-      });
-      return response.json();
+      console.log("processImage", command, filename)
+    const response = await axios.post(this.baseUrl, {
+        task: 'photos',
+        apikey: this.apiKey,
+        answer: `${command} ${filename}`
+    })
+
+      console.log("processImage response", response.data.message)
+      //miss base url
+      return response.data.message;
     }
   
     async submitDescription(description) {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      console.log("submitDescription", description)
+      const response = await axios.post(this.baseUrl, {
           task: 'photos',
           apikey: this.apiKey,
           answer: description
         })
-      });
-      return response.json();
+        console.log("submitDescription response", response.data.message)
+      return response.data.message;
     }
   }
   

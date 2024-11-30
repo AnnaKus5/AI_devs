@@ -7,95 +7,89 @@ export class PhotoAgent {
       this.openAIService = new OpenAIService();
       this.photos = new Map();
     }
-  
-    async analyzeResponse(response) {
-      const prompt = `Analyze this API response and extract relevant information about images and instructions.
-Input response: "${JSON.stringify(response)}"
 
-Please identify:
-1. Base URL for images (if any)
-2. List of image filenames
-3. Available commands
-4. Any special instructions
-
-Respond in this JSON format:
-{
-  "_thinking": "explanation of your analysis",
-  "baseUrl": "extracted base url or null",
-  "images": ["list", "of", "image", "filenames"],
-  "commands": ["available", "commands"],
-  "instructions": "any special instructions",
-  "isValid": boolean
-}`;
-
-      try {
-        const analysis = await this.openAIService.completion({
-          messages: [
-            { role: "system", content: "You are a response analyzer specialized in extracting structured data from natural language API responses." },
-            { role: "user", content: prompt }
-          ]
-        });
-
-        const parsedAnalysis = JSON.parse(analysis.choices[0].message.content);
-        
-        if (!parsedAnalysis.isValid) {
-          throw new Error("Could not extract valid image information from response");
-        }
-
-        // Transform the analyzed response into the expected format
-        return {
-          images: parsedAnalysis.images.map(filename => ({
-            filename,
-            url: `${parsedAnalysis.baseUrl}${filename}`,
-            smallUrl: `${parsedAnalysis.baseUrl}${filename.replace('.PNG', '-small.PNG')}`
-          }))
-        };
-      } catch (error) {
-        console.error('Error analyzing response:', error);
-        throw new Error('Failed to analyze API response');
-      }
-    }
   
     async start() {
       const initialResponse = await this.photoService.start();
       
-      // Add the new analysis step
-      const processedResponse = await this.analyzeResponse(initialResponse);
+      const processedResponse = await this.openAIService.analyzeResponse(initialResponse, null, 'initial');
       
-      // Continue with existing flow
       this.initializePhotos(processedResponse.images);
+
+      //SOULD RETURN AN OBJECT WITH ALL PHOTOS AND THEIR RESULTS
       await this.processAllPhotos();
       const description = await this.generateFinalDescription();
       return this.photoService.submitDescription(description);
     }
   
     initializePhotos(photos) {
+      console.log("Initializing photos:", photos);
       photos.forEach(photo => {
         this.photos.set(photo.filename, {
           filename: photo.filename,
+          baseUrl: photo.baseUrl,
           url: photo.url,
+          smallUrl: photo.smallUrl,
           status: 'NEW',
           actions: [],
+          // need to update processed dynamically
+          finishProcessed: photo.finishProcessed,
           processed: false,
-          analysis: null
+          analysis: null,
+          version: 0
         });
       });
     }
   
     async processAllPhotos() {
       for (const [filename, photo] of this.photos) {
-        while (!photo.processed) {
-          const analysis = await this.openAIService.analyzeImage(photo.url);
+        console.log("photo", photo)
+        let version = 0;
+        while (!photo.finishProcessed) {
+          console.log(`Processing ${filename} (version ${version})`);
+
+          const imageBuffer = await fetch(photo.smallUrl).then(res => res.arrayBuffer());
+          const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+
+          const analysis = await this.openAIService.analyzeImage(imageBase64);
+          console.log(`Analysis for ${filename}:`, analysis);
           photo.analysis = analysis;
-  
+
           if (analysis.actions.length === 0) {
-            photo.processed = true;
+            // photo.finishProcessed = true;
             continue;
           }
-  
+
           for (const action of analysis.actions) {
+            console.log(`Applying ${action} to ${filename}`);
             const result = await this.photoService.processImage(action, photo.filename);
-            photo.url = result.url;
+            
+            version++;
+            
+            console.log("photo.baseUrl", photo.baseUrl)
+            const processedResult = await this.openAIService.analyzeResponse(result, photo.baseUrl, 'processing');
+            
+            //IMPORTANT: ANALYZEIMAGE DOESN'T RETURN VALID OBJECT - not true
+            // processedResult doesn't contain images array so if doesn't work 
+            // after process image we have analyzeResonse, whitch should return vaild obj
+            
+            if (processedResult.images && processedResult.images.length > 0) {
+              console.log("#########processedResult", processedResult)
+              photo.filename = processedResult.images[0].filename;
+              photo.url = processedResult.images[0].url;
+              photo.smallUrl = processedResult.images[0].smallUrl;
+              photo.version = version;
+              photo.finishProcessed = processedResult.finishProcessed;
+              
+              console.log(`Updated ${filename} to version ${version}`);
+              console.log(`New URLs:`, {
+                url: photo.url,
+                smallUrl: photo.smallUrl
+              });
+            } else {
+              console.warn(`No new image URLs found in response for ${filename}`);
+            }
+
           }
         }
       }
