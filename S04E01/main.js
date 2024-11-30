@@ -1,7 +1,8 @@
+import { config } from './config.js';
 import { PhotoAgent } from './photoAgent.js';
 
 async function main() {
-  const apiKey = 'YOUR-API-KEY';
+  const apiKey = config.userApiKey;
   const agent = new PhotoAgent(apiKey);
   
   try {

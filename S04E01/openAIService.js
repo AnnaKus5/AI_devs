@@ -1,6 +1,12 @@
 import { config } from './config.js';
 import OpenAI from 'openai';
 
+//there should another prompts
+// one to analyze response from endpoint: 
+// -we have few image, we have one repair image or we have error - bad action was call
+
+// one to analyze the image 
+
 export class OpenAIService {
     constructor() {
       this.openai = new OpenAI({ apiKey: config.openaiApiKey });
