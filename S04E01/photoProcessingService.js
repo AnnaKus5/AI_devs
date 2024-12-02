@@ -8,19 +8,7 @@ export class PhotoProcessingService {
     }
   
     async start() {
-    //   const response = await fetch(this.baseUrl, {
-    //     method: 'GET',
-    //     headers: {
-    //       'Content-Type': 'application/json',
-    //     },
-    //     body: JSON.stringify({
-    //       task: 'photos',
-    //       apikey: this.apiKey,
-    //       answer: 'START'
-    //     })
-    //   });
 
-    console.log(this.apiKey)
         const response = await axios.post(this.baseUrl, {
             task: 'photos',
             apikey: this.apiKey,
@@ -39,7 +27,6 @@ export class PhotoProcessingService {
     })
 
       console.log("processImage response", response.data.message)
-      //miss base url
       return response.data.message;
     }
   

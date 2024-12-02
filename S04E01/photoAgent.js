@@ -6,6 +6,7 @@ export class PhotoAgent {
       this.photoService = new PhotoProcessingService(apiKey);
       this.openAIService = new OpenAIService();
       this.photos = new Map();
+      this.finalPhotos = []
     }
 
   
@@ -16,7 +17,6 @@ export class PhotoAgent {
       
       this.initializePhotos(processedResponse.images);
 
-      //SOULD RETURN AN OBJECT WITH ALL PHOTOS AND THEIR RESULTS
       await this.processAllPhotos();
       const description = await this.generateFinalDescription();
       return this.photoService.submitDescription(description);
@@ -31,22 +31,22 @@ export class PhotoAgent {
           url: photo.url,
           smallUrl: photo.smallUrl,
           status: 'NEW',
-          actions: [],
-          // need to update processed dynamically
+          action: [],
           finishProcessed: photo.finishProcessed,
-          processed: false,
           analysis: null,
           version: 0
         });
       });
     }
+
   
     async processAllPhotos() {
       for (const [filename, photo] of this.photos) {
-        console.log("photo", photo)
+        console.log("photo", photo);
         let version = 0;
         while (!photo.finishProcessed) {
           console.log(`Processing ${filename} (version ${version})`);
+          console.log(`Current finishProcessed status: ${photo.finishProcessed}`);
 
           const imageBuffer = await fetch(photo.smallUrl).then(res => res.arrayBuffer());
           const imageBase64 = Buffer.from(imageBuffer).toString('base64');
@@ -56,7 +56,15 @@ export class PhotoAgent {
           photo.analysis = analysis;
 
           if (analysis.actions.length === 0) {
-            // photo.finishProcessed = true;
+            photo.finishProcessed = true;
+            console.log(`No actions needed for ${filename}. Marking as finished.`);
+            if (analysis.couldBeBarbara && analysis.confidence > 70) {
+              this.finalPhotos.push({
+                imageUrl: photo.url,
+                analysis: analysis.couldBeBarbara,
+                confidence: analysis.confidence
+              });
+            }
             continue;
           }
 
@@ -66,38 +74,44 @@ export class PhotoAgent {
             
             version++;
             
-            console.log("photo.baseUrl", photo.baseUrl)
-            const processedResult = await this.openAIService.analyzeResponse(result, photo.baseUrl, 'processing');
+            console.log("photo.baseUrl", photo.baseUrl);
+            const processedResult = await this.openAIService.analyzeResponse(result, photo.baseUrl, 'processing', photo.filename);
             
-            //IMPORTANT: ANALYZEIMAGE DOESN'T RETURN VALID OBJECT - not true
-            // processedResult doesn't contain images array so if doesn't work 
-            // after process image we have analyzeResonse, whitch should return vaild obj
-            
+            console.log("#########processedResult", processedResult);
             if (processedResult.images && processedResult.images.length > 0) {
-              console.log("#########processedResult", processedResult)
               photo.filename = processedResult.images[0].filename;
               photo.url = processedResult.images[0].url;
               photo.smallUrl = processedResult.images[0].smallUrl;
               photo.version = version;
               photo.finishProcessed = processedResult.finishProcessed;
-              
+              photo.status = photo.finishProcessed ? 'FINISH' : 'IN PROGRESS';
+
               console.log(`Updated ${filename} to version ${version}`);
               console.log(`New URLs:`, {
                 url: photo.url,
                 smallUrl: photo.smallUrl
               });
+
+              if (photo.finishProcessed === true) {
+                this.finalPhotos.push({
+                  imageUrl: photo.url,
+                  analysis: photo.analysis.couldBeBarbara,
+                  confidence: photo.analysis.confidence
+                })
+                break
+              }
             } else {
               console.warn(`No new image URLs found in response for ${filename}`);
             }
-
           }
         }
       }
     }
   
     async generateFinalDescription() {
-      const barbaraPhotos = Array.from(this.photos.values())
-        .filter(photo => photo.analysis.couldBeBarbara && photo.analysis.confidence > 70);
+      const barbaraPhotos = this.finalPhotos
+
+      console.log("Selected Barbara photos: ", barbaraPhotos)
   
       if (barbaraPhotos.length === 0) {
         throw new Error('No confident matches for Barbara found');

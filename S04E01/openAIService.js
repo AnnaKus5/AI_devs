@@ -1,20 +1,14 @@
 import { config } from './config.js';
 import OpenAI from 'openai';
 
-//there should another prompts
-// one to analyze response from endpoint: 
-// -we have few image, we have one repair image or we have error - bad action was call
-
-// one to analyze the image 
-
 export class OpenAIService {
     constructor() {
       this.openai = new OpenAI({ apiKey: config.openaiApiKey });
     }
 
-    async analyzeResponse(response, baseUrl = 'not provided', status) {
+    async analyzeResponse(response, baseUrl = 'not provided', status, fileName) {
 
-        const prompt = status === 'initial' ? this.getInitialResponsePrompt(response) : this.getProcessingResponsePrompt(response, baseUrl);
+        const prompt = status === 'initial' ? this.getInitialResponsePrompt(response) : this.getProcessingResponsePrompt(response, baseUrl, fileName);
   
         try {
           const analysis = await this.openai.chat.completions.create({
@@ -28,11 +22,7 @@ export class OpenAIService {
   
           const parsedAnalysis = JSON.parse(analysis.choices[0].message.content);
           
-          if (!parsedAnalysis.isValid) {
-            throw new Error("Could not extract valid image information from response");
-          }
           console.log("parsedAnalysis", parsedAnalysis)
-          // Transform the analyzed response into the expected format
           return {
             images: parsedAnalysis.images.map(filename => ({
               filename,
@@ -58,7 +48,7 @@ export class OpenAIService {
               content: [
                 {
                   type: "text",
-                  text: this.getAnalysisPrompt()
+                  text: this.getAnalysisImagePrompt()
                 },
                 {
                   type: "image_url",
@@ -82,6 +72,21 @@ export class OpenAIService {
     }
   
     async generateDescription(images) {
+
+      const imagesBufferMessagesPromises = await images.map(async image => {
+        const imageBuffer = await fetch(image.imageUrl).then(res => res.arrayBuffer());
+        const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+        return {
+          type: "image_url",
+          image_url: {
+            url: `data:image/jpeg;base64,${imageBase64}`,
+            detail: "high"
+          }
+        }
+
+      })
+      const imagesBufferMessages = await Promise.all(imagesBufferMessagesPromises)
+
       try {
         const messages = [
           {
@@ -90,10 +95,7 @@ export class OpenAIService {
           },
           {
             role: "user",
-            content: images.map(img => ({
-              type: "image_url",
-              image_url: img.url
-            }))
+            content: imagesBufferMessages
           }
         ];
   
@@ -128,14 +130,13 @@ export class OpenAIService {
     "images": ["list", "of", "image", "filenames"],
     "imagesUrls": ["list", "of", "image", "urls"],
     "commands": ["available", "commands"],
-    "instructions": "any special instructions",
     "isValid": boolean, 
     "finishProcessed": false
   }`
     }
 
 
-    getProcessingResponsePrompt(response, baseUrl) {
+    getProcessingResponsePrompt(response, baseUrl, fileName) {
         return `Analyze this API response from an image processing command.
     Input response: "${response}"
     
@@ -145,6 +146,7 @@ export class OpenAIService {
     1. Success status
     2. New image filename (if any)
     3. Base URL: "${baseUrl}"
+    4. If there is no filename in response, return previous image filename: "${fileName}"
     
     Response format as JSON:
     {
@@ -154,8 +156,6 @@ export class OpenAIService {
       "baseUrl": "${baseUrl}",
       "url": "complete URL to the processed image",
       "smallUrl": "URL to the small version of processed image",
-      "isProcessingResponse": true,
-      "isValid": boolean, 
       "finishProcessed": false
     }
     
@@ -173,26 +173,29 @@ export class OpenAIService {
     }`;
       }
   
-    getAnalysisPrompt() {
+    getAnalysisImagePrompt() {
       return `Analyze this image and determine:
-  1. Image quality (good/bad)
-  2. Required improvements (REPAIR/DARKEN/BRIGHTEN) if you couldn't recognize the image
-  3. Is there a woman in the photo?
-  4. Confidence level that this could be Barbara
-  5. Key identifying features
-  6. If you identify what is on photo, the processed action should be equal true
-  
-  Respond in JSON format:
-  {
-    "_thinking": "your reasoning about the image",
-    "quality": "good/bad",
-    "actions": ["REPAIR", "DARKEN", "BRIGHTEN"],
-    "hasWoman": true/false,
-    "couldBeBarbara": true/false,
-    "confidence": 0-100,
-    "features": []
-    "finishProcessed": true/false (false if image needs to be processed to improve quality and readability)
-  }`;
+1. Image quality (good/bad)
+2. Required improvements (REPAIR/DARKEN/BRIGHTEN)
+3. Presence of a woman
+4. If a woman is clearly visible in good quality photo, assume it could be Barbara
+
+Important: If the image is good quality AND shows a clearly visible woman, set:
+- couldBeBarbara: true
+- confidence: 80
+- finishProcessed: true
+
+Return in JSON format:
+{
+  "_thinking": "your analysis process",
+  "quality": "good/bad",
+  "actions": ["needed actions"],
+  "hasWoman": boolean,
+  "couldBeBarbara": boolean (true if good quality image shows a woman),
+  "confidence": number (80 if woman is visible, 0 otherwise),
+  "features": ["list", "of", "visible", "features"],
+  "finishProcessed": boolean (true if good quality)
+}`;
     }
   
     getDescriptionPrompt() {
