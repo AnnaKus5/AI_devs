@@ -1,16 +1,3 @@
-// map test-data array
-// exctract x i y from question value 
-// check if answer is correct if not - replace the value
-// check if test properity exists 
-// if true -> send request to GPT and save the answer to a variable
-
-// import data from 'S01E03.json' assert {type: 'json'};
-
-// const { default: data } = await import("./S01E03.json", {
-//     assert: {
-//       type: "json",
-//     },
-//   });
 import axios from "axios";
 import { createRequire } from "module";
 import OpenAI from 'openai';
