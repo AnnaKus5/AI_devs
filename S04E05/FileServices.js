@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import { readFileSync } from 'fs';
 
 export class FileServices {
     constructor() {
@@ -18,6 +19,31 @@ export class FileServices {
             return content;
         } catch (error) {
             console.error('Error reading file:', error);
+        }
+    }
+
+    async getBase64(imagePath) {
+        console.log(imagePath)
+        try {
+            const imageBuffer = readFileSync(imagePath)
+            const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+            const extension = imagePath.split('.').pop().toLowerCase();
+            let mimeType;
+            switch (extension) {
+                case 'png':
+                    mimeType = 'image/png';
+                    break;
+                case 'jpg':
+                case 'jpeg':
+                    mimeType = 'image/jpeg';
+                    break;
+                default:
+                    mimeType = 'image/jpeg';
+            }
+            return `data:${mimeType};base64,${imageBase64}`;
+        } catch (error) {
+            console.error('Error reading image buffer:', error);
+            throw error;
         }
     }
 

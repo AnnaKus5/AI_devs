@@ -48,4 +48,48 @@ export class OpenAIServices {
         }
     }
 
+    async analyzeImage(imageBase64) {
+
+      const prompt = `
+      Your role is to analyze image provided by user, and return text from that image.
+      You must be very precise and return each word of this notes, it is very important!
+      If you are not sure some words, analize possible solution in context of all document. 
+      Document are in Polish, so sentences have to have make sense in this language.
+      Some parts can be unreadable, try to stay in context of the document. 
+      Response in valid JSON format {
+      "_thinking": "draft version of the returned text, analyze and make sure you get as much information as possible"
+      "text": "text from the image"
+      }
+      `
+      try {
+        const response = await this.openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: prompt
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: imageBase64,
+                    detail: "high"
+                  }
+                }
+              ],
+            },
+          ],
+          max_tokens: 1000,
+          response_format: { type: "json_object" }
+        });
+        console.log("response in analyzeImage", response.choices[0].message.content)
+        return JSON.parse(response.choices[0].message.content);
+      } catch (error) {
+        console.error('Error analyzing image:', error);
+        throw error;
+      }
+    }
 }

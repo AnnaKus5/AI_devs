@@ -16,7 +16,7 @@ export class CentralaServices {
         }
 
         try {
-            const response = await axios.post(url);
+            const response = await axios.get(url);
             return response.data;
         } catch (error) {
             throw new Error(`Failed to get data from Centrala: ${error.message}`);
@@ -34,9 +34,7 @@ export class CentralaServices {
         }
         else {
             questions = JSON.parse(await this.fileService.readFile('./data/questions.json'));
-        }
-        console.log(questions)
-        return questions;
+        }        return questions;
     }
 
     async sendAnswer(taskName, answer) {

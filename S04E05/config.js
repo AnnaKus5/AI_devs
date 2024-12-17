@@ -6,6 +6,6 @@ export const config = {
   reportEndpoint: process.env.SECRET_ENDPOINT_REPORT,
   taskEndpoint: process.env.SECRET_ENDPOINT_TASK,
   userApiKey: process.env.USER_API_KEY,
-  firecrawlApikey: process.env.FIRECRAWL_API_KEY
+  qdrantApiKey: process.env.QDRANT_API_KEY
 };
 

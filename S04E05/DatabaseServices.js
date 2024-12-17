@@ -9,7 +9,6 @@ export class DatabaseServices {
         this.openai = new OpenAIServices()
         this.client = new QdrantClient({ host: "localhost", port: 6333 });
         this.fileServices = new FileServices()
-        this.dataFolder = './data/output_txt/'
     }
 
     async createCollection(collectionName) {
@@ -27,9 +26,8 @@ export class DatabaseServices {
         }
     }
 
-    async createPoints(name) {
-        //it is fileName not filePath
-        const filePath = `${this.dataFolder}${name}`
+    async createPoints(folder, name) {
+        const filePath = `${folder}/${name}`
         const text = await this.fileServices.readFile(filePath)
         const embedding =  await this.openai.createEmbedding(text)
     
@@ -52,9 +50,28 @@ export class DatabaseServices {
     
     async updateCollection(folder, collectionName) {
         const fileNames = await this.fileServices.getFilesPaths(folder)
-        const points = await Promise.all(fileNames.map(async name => this.createPoints(name)))
+        const points = await Promise.all(fileNames.map(async name => this.createPoints(folder, name)))
         console.log(points)
         await this.upsertPoints(points, collectionName)
+    }
+
+    async findRevelantDocuments(query, collectionName) {
+
+        const queryEmbedding = await this.openai.createEmbedding(query)
+        try {
+            const response = await this.client.search(collectionName, {
+                vector: queryEmbedding,
+                limit: 5,  
+                with_payload: true, 
+                with_vector: false 
+            });
+            
+            // console.log('Search results:', response);
+            return response;
+        } catch (error) {
+            console.error('Error searching in Qdrant:', error);
+            throw error;
+        }
     }
 
 }
