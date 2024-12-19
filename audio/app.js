@@ -1,6 +1,6 @@
 import { AudioServices } from './AudioServices.js';
 
-const FILE_PATH = '../Transcribe/audio.wav';
+const FILE_PATH = './input/rafal_dyktafon.mp3';
 const LANGUAGE = "pl";
 
 async function main() {
